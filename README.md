@@ -25,6 +25,21 @@ Returns the list of top-level symbols in a file (functions, classes, interfaces,
 |---|---|---|---|
 | `filePath` | `string` | ✅ | Absolute path to the file to analyse |
 
+### `compare_code_sections`
+
+Compares two code sections from two files (delimited by line numbers) and returns a unified diff in git format. Useful for verifying that a block of code was correctly copied from one file to another. Leading and trailing blank lines in each section are ignored to avoid false positives from positioning differences.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `fileA` | `string` | ✅ | Absolute path to the first file |
+| `startLineA` | `number` | ✅ | Start line of the section in file A (1-indexed) |
+| `endLineA` | `number` | ✅ | End line of the section in file A, inclusive (1-indexed) |
+| `fileB` | `string` | ✅ | Absolute path to the second file |
+| `startLineB` | `number` | ✅ | Start line of the section in file B (1-indexed) |
+| `endLineB` | `number` | ✅ | End line of the section in file B, inclusive (1-indexed) |
+
+Returns `"Les sections sont identiques."` when no differences are found, or a unified diff with real file line numbers otherwise.
+
 ## Configuration
 
 All file paths must be **absolute**. Relative paths are rejected.

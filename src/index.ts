@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -8,6 +9,7 @@ import { z } from "zod";
 import { setupLogging } from "./logger.js";
 import { executeRefactor } from "./utils/files.js";
 import { getFileOutline } from "./utils/outline.js";
+import { compareCodeSections } from "./utils/compare.js";
 
 setupLogging("MASTER");
 
@@ -50,6 +52,31 @@ const OutlineSchema = z.object({
   filePath: z
     .string()
     .describe("Chemin absolu complet du fichier à analyser"),
+});
+
+const CompareSchema = z.object({
+  fileA: z.string().describe("Chemin absolu complet du premier fichier"),
+  startLineA: z
+    .number()
+    .int()
+    .positive()
+    .describe("Ligne de début de la section dans le fichier A (1-indexé)"),
+  endLineA: z
+    .number()
+    .int()
+    .positive()
+    .describe("Ligne de fin de la section dans le fichier A (1-indexé, incluse)"),
+  fileB: z.string().describe("Chemin absolu complet du second fichier"),
+  startLineB: z
+    .number()
+    .int()
+    .positive()
+    .describe("Ligne de début de la section dans le fichier B (1-indexé)"),
+  endLineB: z
+    .number()
+    .int()
+    .positive()
+    .describe("Ligne de fin de la section dans le fichier B (1-indexé, incluse)"),
 });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -117,6 +144,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["filePath"],
       },
     },
+    {
+      name: "compare_code_sections",
+      description:
+        "Compare deux sections de code (délimitées par des numéros de lignes) issues de deux fichiers. " +
+        "Retourne un diff au format unifié (style git) avec les numéros de lignes réels dans les fichiers. " +
+        "Utile pour vérifier qu'un bloc de code a été correctement recopié d'un fichier à l'autre. " +
+        "Les lignes vides en début et en fin de chaque section sont ignorées pour éviter les faux positifs. " +
+        "Tous les chemins doivent être absolus.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          fileA: {
+            type: "string",
+            description: "Chemin absolu complet du premier fichier",
+          },
+          startLineA: {
+            type: "number",
+            description: "Ligne de début de la section dans le fichier A (1-indexé)",
+          },
+          endLineA: {
+            type: "number",
+            description: "Ligne de fin de la section dans le fichier A (1-indexé, incluse)",
+          },
+          fileB: {
+            type: "string",
+            description: "Chemin absolu complet du second fichier",
+          },
+          startLineB: {
+            type: "number",
+            description: "Ligne de début de la section dans le fichier B (1-indexé)",
+          },
+          endLineB: {
+            type: "number",
+            description: "Ligne de fin de la section dans le fichier B (1-indexé, incluse)",
+          },
+        },
+        required: ["fileA", "startLineA", "endLineA", "fileB", "startLineB", "endLineB"],
+      },
+    },
   ],
 }));
 
@@ -158,6 +224,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               `- Fichier destination : ${result.destLength} lignes après opération`,
           },
         ],
+      };
+    } catch (error: unknown) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Erreur : ${(error as Error).message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  if (name === "compare_code_sections") {
+    try {
+      const validatedArgs = CompareSchema.parse(args);
+      const result = await compareCodeSections(validatedArgs);
+      return {
+        content: [{ type: "text", text: result }],
       };
     } catch (error: unknown) {
       return {
