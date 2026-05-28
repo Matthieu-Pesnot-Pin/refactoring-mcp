@@ -14,7 +14,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "release:patch": "npm version patch && npm publish --access public && git push origin main --follow-tags",
+    "release:minor": "npm version minor && npm publish --access public && git push origin main --follow-tags",
+    "release:major": "npm version major && npm publish --access public && git push origin main --follow-tags"
   },
   "keywords": [
     "mcp",
@@ -28,7 +31,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/imenam/refactoring-mcp.git"
+    "url": "https://github.com/Matthieu-Pesnot-Pin/refactoring-mcp.git"
   },
   "publishConfig": {
     "access": "public"

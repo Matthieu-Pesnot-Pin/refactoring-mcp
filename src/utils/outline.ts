@@ -1,5 +1,5 @@
 import fs from "fs/promises";
-import { validateAndResolvePath } from "./files.js";
+import { validateAndResolvePath, checkFileSize } from "./files.js";
 
 export interface OutlineSymbol {
   name: string;
@@ -38,7 +38,8 @@ const SYMBOL_PATTERNS: { regex: RegExp; type: OutlineSymbol["type"] }[] = [
 ];
 
 export async function getFileOutline(filePath: string): Promise<OutlineSymbol[]> {
-  const resolved = validateAndResolvePath(filePath);
+  const resolved = await validateAndResolvePath(filePath);
+  await checkFileSize(resolved);
   const content = await fs.readFile(resolved, "utf-8");
   const lines = content.split(/\r?\n/);
   const symbols: OutlineSymbol[] = [];

@@ -2,34 +2,62 @@ import fs from "fs/promises";
 import path from "path";
 import { getConfig } from "./config.js";
 
-export function validateAndResolvePath(filePath: string): string {
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export async function validateAndResolvePath(filePath: string): Promise<string> {
   if (!path.isAbsolute(filePath)) {
     throw new Error(`Le chemin doit être absolu : "${filePath}"`);
   }
 
   const resolved = path.resolve(filePath);
+
+  // Résoudre les symlinks pour éviter les contournements de confinement
+  // Si le fichier n'existe pas encore (destination), on résout le dossier parent
+  let realResolved: string;
+  try {
+    realResolved = await fs.realpath(resolved);
+  } catch {
+    const parent = path.dirname(resolved);
+    try {
+      const realParent = await fs.realpath(parent);
+      realResolved = path.join(realParent, path.basename(resolved));
+    } catch {
+      // Le dossier parent n'existe pas non plus — on conserve le chemin résolu
+      realResolved = resolved;
+    }
+  }
+
   const { allowedDir } = getConfig();
 
   if (allowedDir) {
     // Normaliser avec séparateur pour éviter les faux positifs (ex: /foo vs /foobar)
-    const normalizedResolved = resolved.endsWith(path.sep)
-      ? resolved
-      : resolved + path.sep;
+    const normalizedResolved = realResolved.endsWith(path.sep)
+      ? realResolved
+      : realResolved + path.sep;
     const normalizedAllowed = allowedDir.endsWith(path.sep)
       ? allowedDir
       : allowedDir + path.sep;
 
     if (
       !normalizedResolved.startsWith(normalizedAllowed) &&
-      resolved !== allowedDir
+      realResolved !== allowedDir
     ) {
       throw new Error(
-        `Accès interdit : le chemin "${resolved}" n'est pas confiné dans le dossier autorisé "${allowedDir}"`
+        `Accès interdit : le chemin "${realResolved}" n'est pas confiné dans le dossier autorisé "${allowedDir}"`
       );
     }
   }
 
-  return resolved;
+  return realResolved;
+}
+
+export async function checkFileSize(filePath: string): Promise<void> {
+  const stats = await fs.stat(filePath);
+  if (stats.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(
+      `Fichier trop volumineux : ${Math.round(stats.size / 1024 / 1024)} MB (maximum ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB)`
+    );
+  }
 }
 
 export interface RefactorParams {
@@ -47,8 +75,11 @@ export async function executeRefactor(params: RefactorParams): Promise<{
   sourceLength: number;
   destLength: number;
 }> {
-  const sourcePath = validateAndResolvePath(params.sourceFile);
-  const destPath = validateAndResolvePath(params.destinationFile);
+  const sourcePath = await validateAndResolvePath(params.sourceFile);
+  const destPath = await validateAndResolvePath(params.destinationFile);
+
+  // Vérifier la taille du fichier source avant lecture
+  await checkFileSize(sourcePath);
 
   // Lire le fichier source
   const sourceContent = await fs.readFile(sourcePath, "utf-8");
