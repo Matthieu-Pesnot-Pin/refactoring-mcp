@@ -52,6 +52,30 @@ const OutlineSchema = z.object({
   filePath: z
     .string()
     .describe("Chemin absolu complet du fichier à analyser"),
+  depth: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe(
+      "Optionnel : profondeur maximale des symboles à retourner. 0 = premier niveau uniquement (classes, fonctions top-level), 1 = +1 niveau imbriqué (méthodes d'une classe), etc. Par défaut : tous les niveaux."
+    ),
+  startLine: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      "Optionnel : première ligne à analyser (1-indexé). Utile pour cibler une section du fichier. Par défaut : début du fichier."
+    ),
+  endLine: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      "Optionnel : dernière ligne à analyser (1-indexé). Utile pour cibler une section du fichier. Par défaut : fin du fichier."
+    ),
 });
 
 const CompareSchema = z.object({
@@ -129,9 +153,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "get_file_outline",
       description:
-        "Retourne la liste des symboles de premier niveau d'un fichier " +
-        "(fonctions, classes, interfaces, types, constantes, méthodes) avec leurs numéros de lignes de début et de fin. " +
-        "Utile pour identifier les coordonnées précises d'un bloc de code avant de le déplacer. " +
+        "Retourne la liste des symboles d'un fichier (fonctions, classes, interfaces, types, constantes, méthodes) " +
+        "avec leurs numéros de lignes de début et de fin, et leur profondeur d'imbrication (depth). " +
+        "Supporte tous les langages à accolades (TypeScript, JavaScript, PHP, Java, C#…). " +
+        "Paramètres optionnels : depth pour filtrer par niveau d'imbrication, startLine/endLine pour cibler une section. " +
         "Le chemin doit être absolu.",
       inputSchema: {
         type: "object",
@@ -139,6 +164,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           filePath: {
             type: "string",
             description: "Chemin absolu complet du fichier à analyser",
+          },
+          depth: {
+            type: "number",
+            description:
+              "Optionnel : profondeur maximale à retourner. 0 = premier niveau uniquement (classes, fonctions top-level), 1 = +1 niveau (méthodes d'une classe), etc. Par défaut : tous les niveaux.",
+          },
+          startLine: {
+            type: "number",
+            description:
+              "Optionnel : première ligne à analyser (1-indexé). Par défaut : début du fichier.",
+          },
+          endLine: {
+            type: "number",
+            description:
+              "Optionnel : dernière ligne à analyser (1-indexé). Par défaut : fin du fichier.",
           },
         },
         required: ["filePath"],
@@ -191,8 +231,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   if (name === "get_file_outline") {
     try {
-      const { filePath } = OutlineSchema.parse(args);
-      const symbols = await getFileOutline(filePath);
+      const { filePath, depth, startLine, endLine } = OutlineSchema.parse(args);
+      const symbols = await getFileOutline(filePath, { depth, startLine, endLine });
       return {
         content: [{ type: "text", text: JSON.stringify(symbols, null, 2) }],
       };
