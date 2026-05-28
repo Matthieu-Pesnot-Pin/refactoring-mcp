@@ -55,6 +55,11 @@ function countBracesInLine(line: string): number {
   let inDoubleQuote = false;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
+    // Stop at line comments (// or #) when outside of strings
+    if (!inSingleQuote && !inDoubleQuote) {
+      if (ch === "/" && line[i + 1] === "/") break;
+      if (ch === "#") break;
+    }
     if (ch === "'" && !inDoubleQuote) inSingleQuote = !inSingleQuote;
     else if (ch === '"' && !inSingleQuote) inDoubleQuote = !inDoubleQuote;
     else if (!inSingleQuote && !inDoubleQuote) {
