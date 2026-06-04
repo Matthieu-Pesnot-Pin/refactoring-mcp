@@ -155,6 +155,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       description:
         "Retourne la liste des symboles d'un fichier (fonctions, classes, interfaces, types, constantes, méthodes) " +
         "avec leurs numéros de lignes de début et de fin, et leur profondeur d'imbrication (depth). " +
+        "Si un bloc de commentaire JSDoc (/** ... */) précède immédiatement un symbole, les champs commentStartLine et commentEndLine sont inclus dans la réponse. " +
         "Supporte tous les langages à accolades (TypeScript, JavaScript, PHP, Java, C#…). " +
         "Paramètres optionnels : depth pour filtrer par niveau d'imbrication, startLine/endLine pour cibler une section. " +
         "Le chemin doit être absolu.",

@@ -4,6 +4,8 @@ import { validateAndResolvePath, checkFileSize } from "./files.js";
 export interface OutlineSymbol {
   name: string;
   type: "function" | "class" | "interface" | "type" | "const" | "method";
+  commentStartLine?: number;
+  commentEndLine?: number;
   startLine: number;
   endLine: number;
   depth: number;
@@ -48,6 +50,34 @@ const SYMBOL_PATTERNS: { regex: RegExp; type: OutlineSymbol["type"] }[] = [
     type: "method",
   },
 ];
+
+function findPrecedingComment(
+  lines: string[],
+  symbolLineIndex: number
+): { commentStartLine: number; commentEndLine: number } | null {
+  let idx = symbolLineIndex - 1;
+
+  while (idx >= 0 && lines[idx].trim() === "") {
+    idx--;
+  }
+
+  if (idx < 0) return null;
+
+  const trimmed = lines[idx].trim();
+  if (!trimmed.endsWith("*/")) return null;
+
+  const commentEndLine = idx + 1;
+
+  while (idx >= 0) {
+    const t = lines[idx].trim();
+    if (t.startsWith("/**") || t.startsWith("/*")) {
+      return { commentStartLine: idx + 1, commentEndLine };
+    }
+    idx--;
+  }
+
+  return null;
+}
 
 function countBracesInLine(line: string): number {
   let count = 0;
@@ -96,7 +126,15 @@ export async function getFileOutline(
           // Pour le pattern TS method, le groupe capturant est match[2] (match[1] = lookahead interne)
           const name = match[2] ?? match[1];
           if (name) {
-            symbols.push({ name, type, startLine: lineNum, endLine: 0, depth: braceDepth });
+            const comment = findPrecedingComment(lines, i);
+            symbols.push({
+              name,
+              type,
+              ...(comment ?? {}),
+              startLine: lineNum,
+              endLine: 0,
+              depth: braceDepth,
+            });
             break;
           }
         }
