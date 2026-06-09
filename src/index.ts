@@ -94,7 +94,7 @@ const InsertTextSchema = z.object({
           ),
         text: z
           .string()
-          .describe("Texte à insérer. Peut contenir plusieurs lignes (\\n)."),
+          .describe("Texte à insérer. Peut contenir plusieurs lignes (\\n). Ne pas terminer par \\n : le saut de ligne final est géré automatiquement par l'outil."),
       })
     )
     .min(1)
@@ -160,7 +160,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                 },
                 text: {
                   type: "string",
-                  description: "Texte à insérer. Peut contenir plusieurs lignes (\\n).",
+                  description: "Texte à insérer. Peut contenir plusieurs lignes (\\n). Ne pas terminer par \\n : le saut de ligne final est géré automatiquement par l'outil.",
                 },
               },
               required: ["lineNumber", "text"],
