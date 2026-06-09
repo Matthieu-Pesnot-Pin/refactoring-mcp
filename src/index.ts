@@ -7,7 +7,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { setupLogging } from "./logger.js";
-import { executeRefactor } from "./utils/files.js";
+import { executeRefactor, insertTextAtLine } from "./utils/files.js";
 import { getFileOutline } from "./utils/outline.js";
 import { compareCodeSections } from "./utils/compare.js";
 
@@ -78,6 +78,31 @@ const OutlineSchema = z.object({
     ),
 });
 
+const InsertTextSchema = z.object({
+  filePath: z
+    .string()
+    .describe("Chemin absolu complet du fichier cible"),
+  insertions: z
+    .array(
+      z.object({
+        lineNumber: z
+          .number()
+          .int()
+          .positive()
+          .describe(
+            "Numéro de la ligne devant laquelle le texte sera inséré (1-indexé). Utiliser fileLength + 1 pour insérer en fin de fichier."
+          ),
+        text: z
+          .string()
+          .describe("Texte à insérer. Peut contenir plusieurs lignes (\\n)."),
+      })
+    )
+    .min(1)
+    .describe(
+      "Liste des insertions à effectuer. Les insertions sont appliquées du bas vers le haut pour éviter les décalages d'offset. Les numéros de lignes doivent référencer le fichier dans son état ORIGINAL (avant toute insertion)."
+    ),
+});
+
 const CompareSchema = z.object({
   fileA: z.string().describe("Chemin absolu complet du premier fichier"),
   startLineA: z
@@ -105,6 +130,47 @@ const CompareSchema = z.object({
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
+    {
+      name: "insert_text_at_line",
+      description:
+        "Insère du texte (potentiellement multiligne) à une ou plusieurs lignes données dans un fichier. " +
+        "Accepte un tableau d'insertions { lineNumber, text }. " +
+        "Les insertions sont appliquées du bas vers le haut pour éviter les décalages d'offset. " +
+        "Les numéros de lignes doivent référencer le fichier dans son état original (avant toute insertion). " +
+        "Retourne le nombre total de lignes insérées. " +
+        "Le chemin doit être absolu.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          filePath: {
+            type: "string",
+            description: "Chemin absolu complet du fichier cible",
+          },
+          insertions: {
+            type: "array",
+            description:
+              "Liste des insertions à effectuer. Les numéros de lignes référencent le fichier dans son état original.",
+            items: {
+              type: "object",
+              properties: {
+                lineNumber: {
+                  type: "number",
+                  description:
+                    "Numéro de la ligne devant laquelle le texte sera inséré (1-indexé). Utiliser fileLength + 1 pour insérer en fin de fichier.",
+                },
+                text: {
+                  type: "string",
+                  description: "Texte à insérer. Peut contenir plusieurs lignes (\\n).",
+                },
+              },
+              required: ["lineNumber", "text"],
+            },
+            minItems: 1,
+          },
+        },
+        required: ["filePath", "insertions"],
+      },
+    },
     {
       name: "move_or_copy_code",
       description:
@@ -236,6 +302,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const symbols = await getFileOutline(filePath, { depth, startLine, endLine });
       return {
         content: [{ type: "text", text: JSON.stringify(symbols, null, 2) }],
+      };
+    } catch (error: unknown) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Erreur : ${(error as Error).message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  if (name === "insert_text_at_line") {
+    try {
+      const validatedArgs = InsertTextSchema.parse(args);
+      const result = await insertTextAtLine(validatedArgs);
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `Succès : ${result.linesInserted} ligne(s) insérée(s) (${validatedArgs.insertions.length} insertion(s)).\n` +
+              `- Fichier : ${result.fileLength} lignes après insertion`,
+          },
+        ],
       };
     } catch (error: unknown) {
       return {

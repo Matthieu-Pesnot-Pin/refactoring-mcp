@@ -134,3 +134,51 @@ export async function executeRefactor(params: RefactorParams): Promise<{
     destLength: destLines.length,
   };
 }
+
+export interface InsertionEntry {
+  lineNumber: number;
+  text: string;
+}
+
+export interface InsertTextParams {
+  filePath: string;
+  insertions: InsertionEntry[];
+}
+
+export async function insertTextAtLine(params: InsertTextParams): Promise<{
+  linesInserted: number;
+  fileLength: number;
+}> {
+  const resolvedPath = await validateAndResolvePath(params.filePath);
+
+  await checkFileSize(resolvedPath);
+
+  const content = await fs.readFile(resolvedPath, "utf-8");
+  const fileLines = content.split(/\r?\n/);
+  const originalLength = fileLines.length;
+
+  for (const insertion of params.insertions) {
+    if (insertion.lineNumber < 1 || insertion.lineNumber > originalLength + 1) {
+      throw new Error(
+        `Numéro de ligne invalide (demandé: ${insertion.lineNumber}, fichier de ${originalLength} lignes — valeurs acceptées : 1 à ${originalLength + 1})`
+      );
+    }
+  }
+
+  // Tri du bas vers le haut pour éviter les décalages d'offset
+  const sorted = [...params.insertions].sort((a, b) => b.lineNumber - a.lineNumber);
+
+  let totalLinesInserted = 0;
+  for (const insertion of sorted) {
+    const newLines = insertion.text.split(/\r?\n/);
+    fileLines.splice(insertion.lineNumber - 1, 0, ...newLines);
+    totalLinesInserted += newLines.length;
+  }
+
+  await fs.writeFile(resolvedPath, fileLines.join("\n"), "utf-8");
+
+  return {
+    linesInserted: totalLinesInserted,
+    fileLength: fileLines.length,
+  };
+}

@@ -1,3 +1,4 @@
+// TEST INSERT A - début du fichier
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
@@ -12,6 +13,8 @@ export interface Config {
   allowedDir: string | null;
 }
 
+// TEST INSERT B - avant getConfig
+// ligne 2 du commentaire B
 export function getConfig(): Config {
   dotenv.config({ path: envPath, override: true });
 
