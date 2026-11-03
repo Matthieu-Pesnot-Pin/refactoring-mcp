@@ -82,6 +82,12 @@ Or point to a local build:
 }
 ```
 
+## Publication
+
+Chaque push sur `master`, merge de pull request compris, publie une nouvelle version de `@imenam/refactoring-mcp` sur npm (`.github/workflows/publish.yml`) : `npm ci` et build, puis `npm version patch`, dont le commit et le tag sont poussés sur `master`, et `npm publish`. La publication passe par le trusted publishing de npm (OIDC, sans token), avec attestation de provenance. Un échec du build arrête le workflow avant la montée de version.
+
+Sur npmjs.com, le paquet déclare ce workflow comme publieur de confiance (Settings → Trusted publishing → GitHub Actions : `Matthieu-Pesnot-Pin`, `refactoring-mcp`, `publish.yml`, avec `npm publish` dans les actions autorisées). Le commit de version est poussé avec `GITHUB_TOKEN` : si `master` est protégée, la règle doit autoriser GitHub Actions à y pousser.
+
 ## License
 
 MIT
