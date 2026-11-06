@@ -10,11 +10,12 @@ import { setupLogging } from "./logger.js";
 import { executeRefactor, insertTextAtLine } from "./utils/files.js";
 import { getFileOutline } from "./utils/outline.js";
 import { compareCodeSections } from "./utils/compare.js";
+import { APP_VERSION } from "./version.js";
 
 setupLogging("MASTER");
 
 const server = new Server(
-  { name: "refactoring-mcp", version: "1.0.0" },
+  { name: "refactoring-mcp", version: APP_VERSION },
   { capabilities: { tools: {} } }
 );
 
