@@ -12,6 +12,13 @@ import { getFileOutline } from "./utils/outline.js";
 import { compareCodeSections } from "./utils/compare.js";
 import { APP_VERSION } from "./version.js";
 
+// Les flags CLI sont traités avant toute initialisation (logs, serveur) :
+// ils s'exécutent dans le dossier du projet de l'utilisateur, pas dans un serveur MCP.
+if (process.argv.slice(2).includes("--migrate-to-manager")) {
+  const { runMigrateToManager } = await import("./cli/migrate-to-manager.js");
+  process.exit(await runMigrateToManager(process.argv.slice(2), process.cwd()));
+}
+
 setupLogging("MASTER");
 
 const server = new Server(

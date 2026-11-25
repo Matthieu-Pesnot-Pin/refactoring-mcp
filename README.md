@@ -82,6 +82,22 @@ Or point to a local build:
 }
 ```
 
+## Moving to MCP Gateway Manager
+
+Run this in the folder of the project whose `.mcp.json` declares refactoring-mcp:
+
+```bash
+npx -y @imenam/refactoring-mcp@latest --migrate-to-manager --name refactoring-mcp
+```
+
+It writes `refactoring-mcp.mcp-import.zip` in the current folder, to import from the gateway's **MCP** tab (« Importer un MCP »). `--name` picks the `.mcp.json` entry; it is required when refactoring-mcp is declared more than once, and the command fails listing the entries otherwise.
+
+- **Carried over:** the command, its arguments and the environment variables of the entry, `REFACTORING_ALLOWED_DIR` included, unchanged: it keeps confining the server once in the hub. When the hub runs on another machine, set it there to a folder of that machine. refactoring-mcp has no storage folder: only its configuration is exported.
+- **Left out:** the logs (`C:\var\log\refactoring-mcp` or `/var/log/refactoring-mcp`), which stay on this machine.
+- **Set by the hub:** `MCP_LOG_DIR`, `PROXY_URL`, `APP_NAME`, `APP_PATH`, `APP_PORT`.
+
+The archive holds the entry's whole configuration: delete it once imported.
+
 ## Publication
 
 Chaque push sur `master`, merge de pull request compris, publie une nouvelle version de `@imenam/refactoring-mcp` sur npm (`.github/workflows/publish.yml`) : `npm ci` et build, puis `npm version patch`, dont le commit et le tag sont poussés sur `master`, et `npm publish`. La publication passe par le trusted publishing de npm (OIDC, sans token), avec attestation de provenance. Un échec du build arrête le workflow avant la montée de version.
